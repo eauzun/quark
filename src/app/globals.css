@@ -175,3 +175,4 @@ a.project-link{display:block;text-decoration:none;color:inherit;transition:borde
 @media(max-width:560px){.rating-summary{grid-template-columns:1fr;gap:16px}.metamask-account strong{display:none}.metamask-button{padding:0 9px;font-size:10px}}
 .post-task-page{max-width:760px;margin-top:26px;border:1px solid #2b2438;border-radius:7px;background:#120f1a;padding:27px}
 @media(max-width:560px){.post-task-page{padding:18px}}
+.demo-fast{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.demo-fast>span{flex:1;min-width:180px}

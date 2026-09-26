@@ -202,6 +202,24 @@ export function useMarket() {
       setNotice('Profile saved.');
     });
   }
+  /** Demo only: runs apply → assign → deliver → approve in one step so the MON payment flow can be shown instantly. */
+  async function fastComplete(task: Task) {
+    return run('Releasing MON', async () => {
+      if (!isDemo) throw new Error('Instant completion is only available in the demo.');
+      const current = demo.tasks.find(t => t.id === task.id);
+      if (!current || !['open', 'assigned', 'delivered', 'rejected'].includes(current.status)) throw new Error('This task is already settled.');
+      const workerId = current.worker || DEMO_WORKER; const now = Math.floor(Date.now() / 1000);
+      setDemo(prev => {
+        const w = prev.profiles[workerId]; const e = prev.profiles[current.employer];
+        const profiles = { ...prev.profiles,
+          [workerId]: { ...w, badges: [...new Set([...w.badges, current.level])], completed: w.completed + 1, rating: (w.rating * w.completed + 5) / (w.completed + 1), earned: formatEther(parseEther(w.earned) + parseEther(current.amount)) },
+          [current.employer]: { ...e, spent: formatEther(parseEther(e.spent) + parseEther(current.amount)) } };
+        return { ...prev, profiles, tasks: prev.tasks.map(t => t.id === task.id ? { ...t, worker: workerId, applicants: [...new Set([...t.applicants, workerId])], delivery: t.delivery || 'https://example.com/demo-delivery', status: 'approved', rating: 5, reviewDeadline: now } : t) };
+      });
+      setNotice(`Demo payment completed: ${current.amount} MON released from escrow to ${workerName(workerId)}. No real tokens transferred.`);
+    });
+  }
+  const workerName = (id: string) => demo.profiles[id]?.name || 'the builder';
   const allReviews = isDemo ? demo.reviews : reviews;
   async function review(task: Task, rating: number, comment: string) {
     return run('Publishing review', async () => {
@@ -224,7 +242,7 @@ export function useMarket() {
   };
   async function logout() { if (!isDemo) await run('Signing out', async () => { await api('/auth/logout', {}); setSessionAddress(''); setProfile(null); disconnect(); }); }
   function resetDemo() { setDemo(initialDemo()); setRole('worker'); setLastTx(''); setNotice('Demo reset.'); }
-  return { reviews: allReviews, review, metaMask, tasks: isDemo ? demo.tasks : tasks, profile: isDemo ? demo.profiles[wallet] : profile, wallet, role, setRole: changeRole, signedIn, ready, loading, busy, error, setError, notice, setNotice, lastTx, login, logout, refresh, action, createTask, startExam, finishExam, saveProfile, resetDemo, recoverMetadata, wrongChain: !isDemo && account.isConnected && account.chainId !== monad.id };
+  return { reviews: allReviews, review, fastComplete, metaMask, tasks: isDemo ? demo.tasks : tasks, profile: isDemo ? demo.profiles[wallet] : profile, wallet, role, setRole: changeRole, signedIn, ready, loading, busy, error, setError, notice, setNotice, lastTx, login, logout, refresh, action, createTask, startExam, finishExam, saveProfile, resetDemo, recoverMetadata, wrongChain: !isDemo && account.isConnected && account.chainId !== monad.id };
 }
 export type Market = ReturnType<typeof useMarket>;
 export const demoProjects: Project[] = [
