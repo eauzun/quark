@@ -43,6 +43,12 @@ Try Skills & badges → Solidity Basic assessment → Explore tasks → apply to
 
 Wallet addresses are the account identity: registration and login use a one-time SIWE signature and an HttpOnly session cookie, not a password. Registration stores a unique username and, for employers, a company name. Choose Worker or Employer mode before connecting; the saved mode can be changed later. A wallet may use either mode. The mode is a workspace preference, not a security boundary: contract ownership and task state authorize all MON movements. RainbowKit shows the connected wallet's live network balance; mobile WalletConnect requires the project ID above.
 
+## Shared mode (multi-device, wallet-to-wallet payments)
+
+`NEXT_PUBLIC_APP_MODE=shared` keeps every task in Postgres so all devices see the same board (auto-refresh every 4 s). Workers and employers sign in with MetaMask (SIWE). The employer is notified when work is delivered and can approve or reject from the notification bell. Approve sends the task amount in MON directly from the employer's MetaMask to the worker's wallet on Monad Testnet. The server verifies that exact transfer before marking the task paid. There is no escrow lock in this mode.
+
+Required env: `NEXT_PUBLIC_APP_MODE=shared`, `DATABASE_URL` (Neon via Vercel Storage), `JWT_SECRET` (32+ chars), `APP_ORIGIN` (exact production URL). `npm run build` runs `prisma db push` and the idempotent seed automatically when `DATABASE_URL` is set and the mode is not `demo`.
+
 ## Vercel
 
 Import this project's root as a Next.js project. Use `npm ci` and `npm run build`; Node 22 or 24. For a demo deployment, set `NEXT_PUBLIC_APP_MODE=demo`; no external services are needed. For live mode, provision the database/indexer first and configure the variables above in Vercel. `APP_ORIGIN` must match the final deployment domain for SIWE and origin checks. Frontend and Fastify endpoints deploy together; the continuously running Envio indexer is hosted separately, not as a Vercel function. No Vercel deployment has been made yet.

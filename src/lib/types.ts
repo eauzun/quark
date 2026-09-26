@@ -16,3 +16,4 @@ export type Transaction = { to: `0x${string}`; data: `0x${string}`; value: strin
 /** A post-completion evaluation one task party leaves for the other. `fromRole` is the reviewer's role on that task. */
 export type Review = { id: string; taskId: string; taskTitle: string; from: string; fromName: string; to: string; fromRole: 'employer' | 'worker'; rating: number; comment: string; createdAt: number };
 export type ReviewSummary = { count: number; average: number; distribution: Record<1 | 2 | 3 | 4 | 5, number> };
+export type Notification = { id: string; taskId: string; kind: 'applied' | 'assigned' | 'delivered' | 'rejected' | 'paid' | 'cancelled'; message: string; read: boolean; createdAt: number };

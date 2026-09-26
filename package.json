@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node scripts/db-sync.mjs && next build",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",

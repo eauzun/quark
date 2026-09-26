@@ -5,11 +5,14 @@ import { SiweMessage } from 'siwe';
 import { formatEther, parseEther, parseEventLogs, type Hex } from 'viem';
 import { escrowAbi, addresses, monad } from './contracts';
 import { DEMO_EMPLOYER, DEMO_WORKER, demoExam, initialDemo, type DemoState } from './demo';
-import type { Exam, Level, Profile, Program, Project, Review, Task, Transaction } from './types';
+import type { Exam, Level, Notification, Profile, Program, Project, Review, Task, Transaction } from './types';
 import { reviewedBy } from './reviews';
 import { approveSchema, deliverySchema, examAnswersSchema, profileSchema, registrationSchema, rejectSchema, reviewInputSchema, taskInputSchema, validate, walletAddress } from './validators';
 
-export const isDemo = process.env.NEXT_PUBLIC_APP_MODE !== 'live';
+export const appMode = process.env.NEXT_PUBLIC_APP_MODE === 'live' ? 'live' : process.env.NEXT_PUBLIC_APP_MODE === 'shared' ? 'shared' : 'demo';
+export const isDemo = appMode === 'demo';
+/** Shared mode: one Postgres-backed board for every device, approvals paid wallet-to-wallet with MetaMask. */
+export const isShared = appMode === 'shared';
 export async function api<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(`/api${path}`, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: body === undefined ? {} : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await response.json();
@@ -39,7 +42,7 @@ export function useMarket() {
   const [tasks, setTasks] = useState<Task[]>([]); const [profile, setProfile] = useState<Profile | null>(null);
   const [sessionAddress, setSessionAddress] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(''); const [notice, setNotice] = useState(''); const [lastTx, setLastTx] = useState('');
-  const [reviews, setReviews] = useState<Review[]>([]); const [metaMaskInstalled, setMetaMaskInstalled] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]); const [notifications, setNotifications] = useState<Notification[]>([]); const [metaMaskInstalled, setMetaMaskInstalled] = useState(false);
   const wallet = isDemo ? (role === 'worker' ? DEMO_WORKER : DEMO_EMPLOYER) : account.address?.toLowerCase() || '';
   const signedIn = isDemo || (!!wallet && sessionAddress === wallet);
   useEffect(() => {
@@ -51,14 +54,16 @@ export function useMarket() {
   const refresh = useCallback(async () => {
     if (isDemo) { setLoading(false); return; }
     try {
-      const data = await api<{ tasks: Task[] }>('/tasks'); setTasks(data.tasks);
-      if (wallet) { const [nextProfile, received] = await Promise.all([api<Profile>(`/reputation/${wallet}`), api<{ reviews: Review[] }>(`/reviews/${wallet}`)]); setProfile(nextProfile); setReviews(received.reviews); }
+      const base = isShared ? '/shared' : '';
+      const data = await api<{ tasks: Task[] }>(`${base}/tasks`); setTasks(data.tasks);
+      if (wallet) { const [nextProfile, received] = await Promise.all([api<Profile>(`${base}/reputation/${wallet}`), api<{ reviews: Review[] }>(`${base}/reviews/${wallet}`)]); setProfile(nextProfile); setReviews(received.reviews); }
       else { setProfile(null); setReviews([]); }
+      if (isShared && wallet && sessionAddress === wallet) setNotifications((await api<{ notifications: Notification[] }>('/shared/notifications')).notifications);
       setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load tasks.'); }
     finally { setLoading(false); }
-  }, [wallet]);
-  useEffect(() => { void refresh(); if (!isDemo) { void api<{ address: string; role: 'worker' | 'employer'; name: string; companyName: string }>('/auth/session').then(v => { setSessionAddress(v.address); setRole(v.role); setProfile(current => current ? { ...current, name: v.name, companyName: v.companyName } : { address: v.address, name: v.name, companyName: v.companyName, badges: [], completed: 0, rating: 0, earned: '0', spent: '0' }); }).catch(() => setSessionAddress('')); const interval = setInterval(() => void refresh(), 12000); return () => clearInterval(interval); } }, [refresh]);
+  }, [wallet, sessionAddress]);
+  useEffect(() => { void refresh(); if (!isDemo) { void api<{ address: string; role: 'worker' | 'employer'; name: string; companyName: string }>('/auth/session').then(v => { setSessionAddress(v.address); setRole(v.role); setProfile(current => current ? { ...current, name: v.name, companyName: v.companyName } : { address: v.address, name: v.name, companyName: v.companyName, badges: [], completed: 0, rating: 0, earned: '0', spent: '0' }); }).catch(() => setSessionAddress('')); const interval = setInterval(() => void refresh(), isShared ? 4000 : 12000); return () => clearInterval(interval); } }, [refresh]);
   async function run(label: string, operation: () => Promise<void>) {
     if (busy) return false; setBusy(label); setError(''); setNotice('');
     try { await operation(); return true; }
@@ -110,6 +115,21 @@ export function useMarket() {
     return run(action === 'approve' ? 'Releasing MON' : 'Updating task', async () => {
       const input: Record<string, unknown> = action === 'deliver' ? validate(deliverySchema, body) : action === 'approve' ? validate(approveSchema, body) : action === 'reject' ? validate(rejectSchema, body) : action === 'assign' ? { worker: validate(walletAddress, body.worker) } : {};
       await ensureSession();
+      if (isShared) {
+        if (action === 'claim') throw new Error('Shared mode pays on approval; there is no escrow to claim.');
+        if (action === 'approve') {
+          // Direct wallet-to-wallet payment: the employer's MetaMask sends the task amount to the worker, then the server verifies it on-chain.
+          if (!task.worker) throw new Error('This task has no assigned worker.');
+          const hash = await sendTransactionAsync({ to: task.worker as Hex, value: parseEther(task.amount), chainId: 10143 });
+          setLastTx(hash); setBusy('Waiting for confirmation');
+          const receipt = await publicClient!.waitForTransactionReceipt({ hash, confirmations: 1 });
+          if (receipt.status !== 'success') throw new Error('Payment transaction reverted. The task was not marked as paid.');
+          await api(`/shared/tasks/${task.id}/pay`, { txHash: hash, rating: input.rating });
+          await refresh(); setNotice(`${task.amount} MON sent to the worker's wallet.`); return;
+        }
+        await api(`/shared/tasks/${task.id}/${action === 'refund' ? 'cancel' : action}`, input);
+        await refresh(); setNotice({ apply: 'Application submitted.', assign: 'Worker assigned.', deliver: 'Delivery submitted. The employer has been notified.', reject: 'Revision requested.', refund: 'Task cancelled.' }[action] || 'Task updated.'); return;
+      }
       if (!isDemo) { const result = await api<{ transaction?: Transaction }>(`/tasks/${task.id}/${action}`, input); if (result.transaction) await broadcast(result.transaction); else { await refresh(); setNotice('Application submitted.'); } return; }
       const now = Math.floor(Date.now() / 1000); const current = demo.tasks.find(t => t.id === task.id)!;
       const owner = current.employer === wallet; const worker = current.worker === wallet;
@@ -150,6 +170,8 @@ export function useMarket() {
       if (isDemo) {
         setDemo(prev => ({ ...prev, tasks: [{ ...input, id: `demo-${crypto.randomUUID()}`, employer: wallet, employerName: prev.profiles[wallet].name, status: 'open', createdAt: Math.floor(Date.now() / 1000), applicants: [], rejections: 0 }, ...prev.tasks] }));
         setNotice('Demo task published. The MON escrow is simulated.');
+      } else if (isShared) {
+        await api('/shared/tasks', input); await refresh(); setNotice('Task published. Workers on every device can see it now.');
       } else {
         const { draftId, transaction } = await api<{ draftId: string; transaction: Transaction }>('/tasks', input);
         const receipt = await broadcast(transaction);
@@ -221,6 +243,11 @@ export function useMarket() {
   }
   const workerName = (id: string) => demo.profiles[id]?.name || 'the builder';
   const allReviews = isDemo ? demo.reviews : reviews;
+  async function markNotificationsRead() {
+    if (!isShared || !notifications.some(n => !n.read)) return;
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try { await api('/shared/notifications/read', {}); } catch { /* Read state is cosmetic; the next poll reconciles it. */ }
+  }
   async function review(task: Task, rating: number, comment: string) {
     return run('Publishing review', async () => {
       const input = validate(reviewInputSchema, { rating, comment });
@@ -230,7 +257,7 @@ export function useMarket() {
       if (reviewedBy(allReviews, task.id, wallet)) throw new Error('You already reviewed this task.');
       if (isDemo) {
         setDemo(prev => ({ ...prev, reviews: [{ id: `review-${crypto.randomUUID()}`, taskId: task.id, taskTitle: task.title, from: wallet, fromName: prev.profiles[wallet].companyName || prev.profiles[wallet].name, to: owner ? task.worker! : task.employer, fromRole: owner ? 'employer' : 'worker', ...input, createdAt: Math.floor(Date.now() / 1000) }, ...prev.reviews] }));
-      } else { await api(`/tasks/${task.id}/review`, input); await refresh(); }
+      } else { await api(`${isShared ? '/shared' : ''}/tasks/${task.id}/review`, input); await refresh(); }
       setNotice('Review published. Thank you for the feedback.');
     });
   }
@@ -242,7 +269,7 @@ export function useMarket() {
   };
   async function logout() { if (!isDemo) await run('Signing out', async () => { await api('/auth/logout', {}); setSessionAddress(''); setProfile(null); disconnect(); }); }
   function resetDemo() { setDemo(initialDemo()); setRole('worker'); setLastTx(''); setNotice('Demo reset.'); }
-  return { reviews: allReviews, review, fastComplete, metaMask, tasks: isDemo ? demo.tasks : tasks, profile: isDemo ? demo.profiles[wallet] : profile, wallet, role, setRole: changeRole, signedIn, ready, loading, busy, error, setError, notice, setNotice, lastTx, login, logout, refresh, action, createTask, startExam, finishExam, saveProfile, resetDemo, recoverMetadata, wrongChain: !isDemo && account.isConnected && account.chainId !== monad.id };
+  return { notifications, markNotificationsRead, reviews: allReviews, review, fastComplete, metaMask, tasks: isDemo ? demo.tasks : tasks, profile: isDemo ? demo.profiles[wallet] : profile, wallet, role, setRole: changeRole, signedIn, ready, loading, busy, error, setError, notice, setNotice, lastTx, login, logout, refresh, action, createTask, startExam, finishExam, saveProfile, resetDemo, recoverMetadata, wrongChain: !isDemo && account.isConnected && account.chainId !== monad.id };
 }
 export type Market = ReturnType<typeof useMarket>;
 export const demoProjects: Project[] = [

@@ -98,3 +98,42 @@ model Review {
   @@unique([taskId, reviewer])
   @@index([reviewee])
 }
+// Shared mode: tasks live fully in Postgres so every device sees the same board; payments are direct wallet transfers.
+model SharedTask {
+  id String @id @default(cuid())
+  title String
+  description String
+  category String
+  level String
+  amount String
+  employer String
+  worker String?
+  status String @default("open")
+  deadline Int
+  reviewDeadline Int?
+  applicants Json @default("[]")
+  delivery String?
+  reason String?
+  rejections Int @default(0)
+  rating Int?
+  txHash String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status])
+}
+model SharedBadge {
+  worker String
+  level String
+  createdAt DateTime @default(now())
+  @@id([worker, level])
+}
+model Notification {
+  id String @id @default(cuid())
+  wallet String
+  taskId String
+  kind String
+  message String
+  read Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([wallet, createdAt])
+}

@@ -9,6 +9,7 @@ import { badgeAbi, escrowAbi, monad, skillIds } from '../lib/contracts';
 import type { Level, Review, Task } from '../lib/types';
 import { approveSchema, deliverySchema, examAnswersSchema, levelSchema, profileSchema, registrationSchema, rejectSchema, reviewInputSchema, roleSchema, safeExternalUrl, taskInputSchema, txHashSchema, walletAddress } from '../lib/validators';
 import { db } from './db';
+import { registerShared, sharedMode } from './shared';
 import { authSettings, settings } from './config';
 import { graph, indexedTask, indexedTasks, type IndexedTask } from './indexed';
 
@@ -198,6 +199,7 @@ export function createApi() {
       if (!saved.count) fail('Assessment already submitted.');
     }
     if (score === null || score < 80) return { passed: false, score };
+    if (sharedMode()) { await db.sharedBadge.upsert({ where: { worker_level: { worker, level } }, create: { worker, level }, update: {} }); return { passed: true, score }; }
     const config = settings();
     if (!config.oracleKey) fail('Assessment signer is not configured.', 503);
     const payload = keccak256(encodeAbiParameters([{ type: 'uint256' }, { type: 'address' }, { type: 'address' }, { type: 'bytes32' }], [10143n, config.badge, worker as Address, skillIds[level]]));
@@ -240,6 +242,7 @@ export function createApi() {
     const [projects, tasks] = await Promise.all([db.communityProject.findMany(), indexedTasks()]);
     return { projects: projects.filter(p => safeExternalUrl(p.url)).map(p => ({ ...p, hiringOnQuark: !!p.employer && tasks.some(t => t.employer === p.employer && t.status === 'open' && Number(t.deadline) > Date.now() / 1000) })) };
   });
+  registerShared(app, { session, fail, client: client as never });
   return app;
 }
 let api: ReturnType<typeof createApi> | undefined;
