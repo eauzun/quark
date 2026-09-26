@@ -1,0 +1,32 @@
+name: quark
+description: Monad Testnet MON task escrow
+address_format: lowercase
+field_selection:
+  transaction_fields:
+    - hash
+contracts:
+  - name: TaskEscrow
+    events:
+      - event: TaskCreated(uint256 indexed taskId, address indexed employer, bytes32 requiredSkillId, uint256 amount, uint256 deadline)
+      - event: WorkerAssigned(uint256 indexed taskId, address indexed worker)
+      - event: DeliverySubmitted(uint256 indexed taskId, bytes32 deliveryHash, uint256 reviewDeadline)
+      - event: TaskApproved(uint256 indexed taskId, address indexed worker, uint8 rating, uint256 amount)
+      - event: TaskRejected(uint256 indexed taskId, string reason, uint8 rejections, uint256 deadline)
+      - event: TaskRefunded(uint256 indexed taskId, address indexed employer, uint256 amount)
+  - name: SkillBadge
+    events:
+      - event: BadgeMinted(address indexed worker, bytes32 indexed skillId)
+  - name: Reputation
+    events:
+      - event: CompletionRecorded(address indexed worker, address indexed employer, uint8 rating, uint256 amount)
+chains:
+  - id: 10143
+    start_block: ${ENVIO_START_BLOCK:-0}
+    rpc: ${ENVIO_RPC_URL:-https://testnet-rpc.monad.xyz}
+    contracts:
+      - name: TaskEscrow
+        address: ${ENVIO_ESCROW_ADDRESS}
+      - name: SkillBadge
+        address: ${ENVIO_BADGE_ADDRESS}
+      - name: Reputation
+        address: ${ENVIO_REPUTATION_ADDRESS}

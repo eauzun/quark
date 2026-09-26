@@ -1,0 +1,17 @@
+node_modules/
+.next/
+.env
+.env.local
+artifacts/
+out/
+cache/
+*.tsbuildinfo
+test-results/
+playwright-report/
+indexer/generated/
+indexer/.env
+deployments/*.json
+.vercel/
+.claude/
+.codex/
+.env*.local

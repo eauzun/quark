@@ -1,0 +1,53 @@
+{
+  "name": "quark-monad",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "prisma generate && next build",
+    "start": "next start --hostname 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:contracts": "node --import tsx --test tests/contracts.test.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "node --import tsx prisma/seed.ts",
+    "contracts:build": "node --import tsx scripts/compile.ts",
+    "contracts:deploy": "node --import tsx scripts/deploy.ts",
+    "test:e2e": "playwright test",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.3.0",
+    "@prisma/client": "^6.19.0",
+    "@rainbow-me/rainbowkit": "^2.2.8",
+    "@tanstack/react-query": "^5.90.0",
+    "@x402/core": "^2.27.0",
+    "@x402/evm": "^2.27.0",
+    "@x402/svm": "^2.27.0",
+    "fastify": "^5.6.0",
+    "jose": "^6.1.0",
+    "lucide-react": "^0.468.0",
+    "next": "16.3.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "siwe": "^3.0.0",
+    "viem": "^2.38.0",
+    "wagmi": "^2.18.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "ganache": "^7.9.2",
+    "prisma": "^6.19.0",
+    "solc": "0.8.30",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "quark-indexer", "private": true, "type": "module",
+  "scripts": { "codegen": "envio codegen", "dev": "envio dev", "start": "envio start", "typecheck": "tsc --noEmit" },
+  "dependencies": { "envio": "3.12.1" }, "devDependencies": { "typescript": "^5.9.0", "@types/node": "^24.0.0" }
+}

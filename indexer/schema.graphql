@@ -1,0 +1,29 @@
+type Task {
+  id: ID!
+  employer: String! @index
+  worker: String!
+  requiredSkillId: String!
+  amount: BigInt!
+  deadline: BigInt!
+  status: String! @index
+  deliveryHash: String!
+  reviewDeadline: BigInt!
+  rejections: Int!
+  reason: String!
+  rating: Int!
+  txHash: String!
+  createdAt: BigInt!
+}
+type Badge {
+  id: ID!
+  worker: String! @index
+  skillId: String!
+  txHash: String!
+}
+type Score {
+  id: ID!
+  completedTasks: Int!
+  ratingSum: Int!
+  totalEarned: BigInt!
+  totalSpent: BigInt!
+}
