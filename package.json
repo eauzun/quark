@@ -1,0 +1,42 @@
+{
+  "name": "quark",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web3-first freelancing platform with AI-powered code review",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "test:unit": "turbo test:unit",
+    "test:integration": "turbo test:integration",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "db:generate": "turbo db:generate --filter=@quark/database",
+    "db:migrate": "turbo db:migrate --filter=@quark/database",
+    "db:studio": "turbo db:studio --filter=@quark/database",
+    "clean": "turbo clean"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "drizzle-orm": "^0.45.4",
+    "turbo": "^2.3.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5",
+    "zod": "^4.6.7"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.8.0",
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@noble/hashes": "^2.4.0",
+    "hono": "^4.13.14",
+    "viem": "^2.57.13"
+  }
+}
