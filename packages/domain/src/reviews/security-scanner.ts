@@ -50,6 +50,7 @@ export const scanSubmissionSecurity = (
   for (const file of files) {
     // 1. Scan for credentials / secrets
     for (const pattern of SECRET_PATTERNS) {
+      pattern.regex.lastIndex = 0; // Reset stateful g-flag regex
       if (pattern.regex.test(file.content)) {
         secretsDetectedCount++;
         findings.push({
@@ -64,6 +65,7 @@ export const scanSubmissionSecurity = (
 
     // 2. Scan for prompt injection payload attempts (Spec §15.1 Scenario 7)
     for (const injection of INJECTION_PATTERNS) {
+      injection.regex.lastIndex = 0; // Reset stateful g-flag regex
       if (injection.regex.test(file.content)) {
         injectionAttemptsCount++;
         findings.push({
