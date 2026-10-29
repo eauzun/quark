@@ -22,5 +22,7 @@ export * from "./assessment/session-media.js";
 export * from "./reviews/review-contract.js";
 export * from "./reviews/security-scanner.js";
 export * from "./reviews/reviewer-pipeline.js";
+export * from "./disputes/dispute-service.js";
+export * from "./training/provenance-service.js";
 export * from "./ledger/journal.js";
 export * from "./ledger/ledger-service.js";
