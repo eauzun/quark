@@ -26,3 +26,6 @@ export * from "./disputes/dispute-service.js";
 export * from "./training/provenance-service.js";
 export * from "./ledger/journal.js";
 export * from "./ledger/ledger-service.js";
+export * from "./admin/gate-tracker.js";
+export * from "./admin/operations.js";
+export * from "./notifications/outbox.js";
