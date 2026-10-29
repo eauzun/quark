@@ -19,5 +19,8 @@ export * from "./matching/matcher.js";
 export * from "./assessment/assessment-rubric.js";
 export * from "./assessment/cooldown.js";
 export * from "./assessment/session-media.js";
+export * from "./reviews/review-contract.js";
+export * from "./reviews/security-scanner.js";
+export * from "./reviews/reviewer-pipeline.js";
 export * from "./ledger/journal.js";
 export * from "./ledger/ledger-service.js";
